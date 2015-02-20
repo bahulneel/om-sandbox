@@ -1,3 +1,8 @@
+body {
+    width: 100%;
+    heigth: 100%;
+}
+
 h1 {
   text-decoration: underline;
 }
