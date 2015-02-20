@@ -23,7 +23,6 @@
 
 (defn update-view
   [screen camera]
-  (println screen)
   (let [{:keys [width height]} screen
         {:keys [center scale]} camera
         [x y] center
@@ -34,7 +33,6 @@
         view-x (- x (/ view-width 2))
         view-y (- y (/ view-height 2))
         view (apply str (interpose " " [view-x view-y view-width view-height]))]
-    (println view)
     (assoc screen :viewBox view)))
 
 (defn grid-square
