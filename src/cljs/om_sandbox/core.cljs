@@ -3,65 +3,42 @@
             [om.dom :as dom :include-macros true]
             [sablono.core :as html :refer-macros [html]]))
 
-(defonce pixel-ratio (.-devicePixelRatio js/window))
-
 (defonce app-state (atom {:screen {}
+                          :device {}
                           :camera {:center [0 0]
                                    :scale 10}
                           :text "Hello Chestnut!"}))
 
 (defn resize
+  [app-state]
+  (let [width (-> js/window
+                  .-innerWidth
+                  (max 240)
+                  (- 5))
+        height (-> js/window
+                   .-innerHeight
+                   (max 240)
+                   (- 5))]
+    (assoc app-state :screen {:width width
+                              :height height})))
+
+(defn device
+  [app-state]
+  (let [pixel-ratio (.-devicePixelRatio js/window)]
+    (assoc app-state :device {:pixel-ration pixel-ratio})))
+
+(defn init
   []
-  (let [width (.-innerWidth js/window)
-        height (.-innerHeight js/window)]
-    (swap! app-state assoc :screen {:width width
-                                    :height height})))
+  (let [body (.. js/document
+                 (getElementsByTagName "body")
+                 (item 0))]
+    (set! (.-onresize body) (fn []
+                              (swap! app-state resize))))
+  (swap! app-state #(-> %
+                        device
+                        resize)))
 
-(defn p->u
-  [{:keys [scale]} p]
-  (/ p scale))
-
-(defn update-view
-  [screen camera]
-  (let [{:keys [width height]} screen
-        {:keys [center scale]} camera
-        [x y] center
-        width (/ width pixel-ratio)
-        height (/ height pixel-ratio)
-        view-width (/ width scale)
-        view-height (/ height scale)
-        view-x (- x (/ view-width 2))
-        view-y (- y (/ view-height 2))
-        view (apply str (interpose " " [view-x view-y view-width view-height]))]
-    (assoc screen :viewBox view)))
-
-(defn grid-square
-  [camera x y size]
-  (let [{:keys [scale]} camera
-        s {:fill :none :stroke :grey :stroke-width (p->u camera 1)}
-        sl (assoc s :stroke-dasharray "0.01, 0.01")
-        xm (+ x size)
-        ym (+ y size)
-        lines-x (for [x (range x xm)]
-                  [:line (merge sl {:x1 x :y1 y :x2 x :y2 ym})])
-        lines-y (for [y (range y ym)]
-                  [:line (merge sl {:x1 x :y1 y :x2 xm :y2 y})])
-        lines (concat lines-x lines-y)]
-    (apply vector
-           :g
-           [:rect (merge s {:x x :y y :width size :height size})]
-           lines)))
-
-(defn grid
-  [camera]
-  (let [{:keys [scale]} camera
-        n (* 3 scale)]
-    [:g
-     (for [x (range (- n) n scale)
-           y (range (- n) n scale)]
-       (grid-square camera x y scale))]))
-
-(resize)
+(init)
 
 (defn main []
   (om/root
@@ -69,11 +46,9 @@
       (reify
         om/IRender
         (render [_]
-          (let [screen (:screen app)
-                camera (:camera app)
-                view (update-view screen camera)
-                g (grid camera)]
+          (let [screen (:screen app)]
             (html
-             [:svg view g])))))
+             [:svg screen
+              [:rect screen]])))))
     app-state
     {:target (. js/document (getElementById "app"))}))
